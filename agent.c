@@ -194,7 +194,6 @@ void snmpset(uint8_t buffer[64]){
 		memset(aux, 0, 256);
 		strcpy(aux,fbuff);
 		char *token = NULL;
-		//printf("%s\n", fbuff);
 		j = 1;
 		for(token = strtok(fbuff, " ");token != NULL; token = strtok(NULL, " ")){
 			if (j==1){

@@ -1,4 +1,3 @@
-// Client side implementation of UDP client-server model
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -9,15 +8,14 @@
 #include <netinet/in.h>
 #include <stdint.h>
 #include <ctype.h>	
-#define PORT	 55555
+#define PORT	 8080
 #define MAXLINE 1024
-uint8_t pacote[128];
+uint8_t datagram[128];
 
 void menu(){
 	printf("\n");
 	printf("---------SNMPv2c Managment App---------\n");
 	printf("Press 1 to insert SNPM commands\n");
-	printf("Press 2 to get accepted commands\n");
 	printf("Press 0 to exit\n");
 	printf("\n");
 	printf("-----------Accepted Commands-----------\n");
@@ -28,17 +26,17 @@ void menu(){
 	printf("\n");
 }
 
-void criar_pacote(char * comando){
-	memset(pacote, 0, 128);
+void create_datagram(char * snmpCommand){
+	memset(datagram, 0, 128);
 	char* token = NULL;
 	int i = 1;
 	char snmp[16];
 	char version[8];
 	char comstring[16];
 	char oid[64];
-	for(token = strtok(comando," ");token != NULL; token = strtok(NULL, " ")){
+	for(token = strtok(snmpCommand," ");token != NULL; token = strtok(NULL, " ")){
 		if (i == 1){
-			memset(pacote, 0,32);
+			memset(datagram, 0,32);
 			strcpy(snmp, token);
 			int j = 0;
 			while(snmp[j]){
@@ -46,16 +44,16 @@ void criar_pacote(char * comando){
 				j++;
 			}
 			if(strcmp(snmp, "snmpget")==0){
-				pacote[0] = 0;
+				datagram[0] = 0;
 			}
 			else if(strcmp(snmp, "snmpgetnext")==0){
-				pacote[0] = 1;
+				datagram[0] = 1;
 			}
 			else if(strcmp(snmp, "snmpset")==0){
-				pacote[0] = 2;
+				datagram[0] = 2;
 			}
 			else if(strcmp(snmp, "snmpgetbulk")==0){
-				pacote[0] = 3;
+				datagram[0] = 3;
 			}
 		}
 		//se for versao correta escrevo um 1 senao um 2
@@ -67,9 +65,9 @@ void criar_pacote(char * comando){
 				j++;
 			}
 			if (strcmp(version, "-v2c")==0){
-				pacote[1] = 1;
+				datagram[1] = 1;
 			}else{
-				pacote[1] = 2;
+				datagram[1] = 2;
 			}
 		}
 		if (i == 3){
@@ -77,44 +75,44 @@ void criar_pacote(char * comando){
 			int j = 0;
 			while(comstring[j]){
 				comstring[j] = tolower(comstring[j]);
-				pacote[j+3] = comstring[j];
+				datagram[j+3] = comstring[j];
 				j++;
 			}
 			//bytes community string 
-			pacote[2] = j;
+			datagram[2] = j;
 		}
 		if (i == 4){
 			strcpy(oid, token);
 			int j = 0;
 			int a = 0;
 			while(oid[j]){
-				pacote[pacote[2] + 3 + j + 1] = oid[j];
+				datagram[datagram[2] + 3 + j + 1] = oid[j];
 				j++;
 			}
 			//bytes de oid 
-			pacote[pacote[2] + 3 ] = j;
+			datagram[datagram[2] + 3 ] = j;
 		}
 		if(i == 5){ 
-			if (pacote[0] == 2){
+			if (datagram[0] == 2){
 				char value[32];
 				strcpy(value, token);
 				int j = 0;
 				while(value[j]){
-					pacote[(pacote[2]+3)+pacote[pacote[2]+3]+2+j] = value[j];
+					datagram[(datagram[2]+3)+datagram[datagram[2]+3]+2+j] = value[j];
 					j++;
 				}
-				pacote[(pacote[2]+3)+pacote[pacote[2]+3]+1] = j;
-			}else if(pacote[0] == 3){
+				datagram[(datagram[2]+3)+datagram[datagram[2]+3]+1] = j;
+			}else if(datagram[0] == 3){
 				char oid2[32];
 				strcpy(oid2, token);
 				int j = 0;
 				int a = 0;
 				while(oid2[j]){
-					pacote[(pacote[2]+3)+pacote[pacote[2]+3] + j +2] = oid2[j];
+					datagram[(datagram[2]+3)+datagram[datagram[2]+3] + j +2] = oid2[j];
 					j++;
 				}
 				//bytes de oid 
-				pacote[(pacote[2]+3)+pacote[pacote[2]+3] +1 ] = j;
+				datagram[(datagram[2]+3)+datagram[datagram[2]+3] +1 ] = j;
 			}
 		}
 		i++;
@@ -122,46 +120,45 @@ void criar_pacote(char * comando){
 	
 }
 
-
 int main() {
 	int sockfd, n, len;
 	int flag = 1;
-	int opcao = 0;
+	int option = 0;
 	uint8_t buffer[MAXLINE];
-	struct sockaddr_in	 servaddr;
+	struct sockaddr_in servaddr;
 	
-	// Creating socket file descriptor
+	// Creating socket fd
 	if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
-		perror("socket creation failed");
+		perror("Socket Creation Error");
 		exit(EXIT_FAILURE);
 	}
 	
-	memset(&servaddr, 0, sizeof(servaddr));
-		
+	//socket struct params configuration
+	memset(&servaddr, 0, sizeof(servaddr));	
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_port = htons(PORT);
 	servaddr.sin_addr.s_addr = INADDR_ANY;
 		
 	while(flag){
 		menu();
-		printf("Opção- ");
-		scanf("%d", &opcao);
+		printf("Option- ");
+		scanf("%d", &option);
 		fflush(stdin);
 		getchar();
-		if(opcao == 0){
+		if(option == 0){
 			flag = 0;
 		}
-		else if(opcao == 1){
-			char comando[64];
+		else if(option == 1){
+			char snmpCommand[64];
 			char c;
 			int a = 0;
-			printf("Insira o comando SNMP:\n");
+			printf("Insert SNMP command:\n");
 			fflush(stdin);
 			while((c=getchar()) != '\n')
-				comando[a++] = c;
-			comando[a] = '\0';
-			criar_pacote(comando);
-			sendto(sockfd, pacote, 64,
+				snmpCommand[a++] = c;
+			snmpCommand[a] = '\0';
+			create_datagram(snmpCommand);
+			sendto(sockfd, datagram, 64,
 				MSG_CONFIRM, (const struct sockaddr *) &servaddr,
 					sizeof(servaddr));
 			
@@ -170,7 +167,7 @@ int main() {
 						MSG_WAITALL, (struct sockaddr *) &servaddr,
 						&len);
 			if(buffer[0] == 0){
-				printf("MENSAGEM DE ERRO:\n");
+				printf("Error:\n");
 				int s = buffer[1];
 				for(int i = 0; i<s;i++){
 					printf("%c", buffer[i+2]);
@@ -178,7 +175,7 @@ int main() {
 				printf("\n");
 			}
 			else{
-				if (pacote[0] == 3){
+				if (datagram[0] == 3){
 					int qnt = buffer[1];
 					int size = 0;
 					int pos = 2;
@@ -199,7 +196,7 @@ int main() {
 					}
 
 				}else{
-					printf("RESPOSTA AGENT:\n");
+					printf("Agent Reply:\n");
 					printf("OID: ");
 					int l = buffer[1];
 					for(int j = 0; j< l; j++){
@@ -215,9 +212,7 @@ int main() {
 				
 			}
 			buffer[n] = '\0';
-			//printf("Server : %s\n", buffer);
 		}
-		
 	}
 	close(sockfd);
 	return 0;
