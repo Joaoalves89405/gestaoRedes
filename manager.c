@@ -8,18 +8,26 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdint.h>
-#include <ctype.h>
-	
+#include <ctype.h>	
 #define PORT	 55555
 #define MAXLINE 1024
-
 uint8_t pacote[128];
 
+void menu(){
+	printf("\n");
+	printf("---------SNMPv2c Managment App---------\n");
+	printf("Press 1 to insert SNPM commands\n");
+	printf("Press 2 to get accepted commands\n");
+	printf("Press 0 to exit\n");
+	printf("\n");
+	printf("-----------Accepted Commands-----------\n");
+	printf("snmpget -v2c public [OID]\n");
+	printf("snmpgetnext -v2c public [OID]\n");
+	printf("snmpset -v2c public [OID] [VALUE]\n");
+	printf("snmpgetbulk -v2c public [OID] [OID]\n" );
+	printf("\n");
+}
 
-//tpm 0 snmpget
-//tpm 1 snmpgetnext
-//tpm 2 snmpset
-//tpm 3 snmpbulk
 void criar_pacote(char * comando){
 	memset(pacote, 0, 128);
 	char* token = NULL;
@@ -114,16 +122,11 @@ void criar_pacote(char * comando){
 	
 }
 
-void Menu(){
-	printf("-----SNMPv2c-----\n");
-	printf("Insira 0 para sair\n");
-	printf("Insira 1 para proceder ao comando SNMP\n");
-	printf("Insira 2 para help!\n");
-}
 
-// Driver code
 int main() {
-	int sockfd;
+	int sockfd, n, len;
+	int flag = 1;
+	int opcao = 0;
 	uint8_t buffer[MAXLINE];
 	struct sockaddr_in	 servaddr;
 	
@@ -135,28 +138,18 @@ int main() {
 	
 	memset(&servaddr, 0, sizeof(servaddr));
 		
-	// Filling server information
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_port = htons(PORT);
 	servaddr.sin_addr.s_addr = INADDR_ANY;
 		
-	int n, len;
-	int flag = 1;
-	int opcao = 0;
 	while(flag){
-		Menu();
+		menu();
 		printf("Opção- ");
 		scanf("%d", &opcao);
 		fflush(stdin);
 		getchar();
 		if(opcao == 0){
 			flag = 0;
-		
-		}else if(opcao == 2){
-			printf("snmpget -v2c public [OID]\n");
-			printf("snmpgetnext -v2c public [OID]\n");
-			printf("snmpset -v2c public [OID] [VALOR]\n");
-			printf("snmpgetbulk -v2c public [OID] [OID]\n" );
 		}
 		else if(opcao == 1){
 			char comando[64];
