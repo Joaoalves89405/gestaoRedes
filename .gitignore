@@ -2,3 +2,4 @@ agent
 manager
 a.out
 *.o
+*.vscode

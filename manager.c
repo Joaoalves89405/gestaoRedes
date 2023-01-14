@@ -7,12 +7,13 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <stdint.h>
-#include <ctype.h>	
-#define PORT	 8080
+#include <ctype.h>
+#define PORT 8080
 #define MAXLINE 1024
 uint8_t datagram[128];
 
-void menu(){
+void menu()
+{
 	printf("\n");
 	printf("---------SNMPv2c Managment App---------\n");
 	printf("Press 1 to insert SNPM commands\n");
@@ -22,194 +23,230 @@ void menu(){
 	printf("snmpget -v2c public [OID]\n");
 	printf("snmpgetnext -v2c public [OID]\n");
 	printf("snmpset -v2c public [OID] [VALUE]\n");
-	printf("snmpgetbulk -v2c public [OID] [OID]\n" );
+	printf("snmpgetbulk -v2c public [OID] [OID]\n");
 	printf("\n");
 }
 
-void create_datagram(char * snmpCommand){
+void create_datagram(char *snmpCommand)
+{
 	memset(datagram, 0, 128);
-	char* token = NULL;
+	char *token = NULL;
 	int i = 1;
 	char snmp[16];
 	char version[8];
 	char comstring[16];
 	char oid[64];
-	for(token = strtok(snmpCommand," ");token != NULL; token = strtok(NULL, " ")){
-		if (i == 1){
-			memset(datagram, 0,32);
+	for (token = strtok(snmpCommand, " "); token != NULL; token = strtok(NULL, " "))
+	{
+		if (i == 1)
+		{
+			memset(datagram, 0, 32);
 			strcpy(snmp, token);
 			int j = 0;
-			while(snmp[j]){
+			while (snmp[j])
+			{
 				snmp[j] = tolower(snmp[j]);
 				j++;
 			}
-			if(strcmp(snmp, "snmpget")==0){
+			if (strcmp(snmp, "snmpget") == 0)
+			{
 				datagram[0] = 0;
 			}
-			else if(strcmp(snmp, "snmpgetnext")==0){
+			else if (strcmp(snmp, "snmpgetnext") == 0)
+			{
 				datagram[0] = 1;
 			}
-			else if(strcmp(snmp, "snmpset")==0){
+			else if (strcmp(snmp, "snmpset") == 0)
+			{
 				datagram[0] = 2;
 			}
-			else if(strcmp(snmp, "snmpgetbulk")==0){
+			else if (strcmp(snmp, "snmpgetbulk") == 0)
+			{
 				datagram[0] = 3;
 			}
 		}
-		//se for versao correta escrevo um 1 senao um 2
-		if (i == 2){
+		// se for versao correta escrevo um 1 senao um 2
+		if (i == 2)
+		{
 			strcpy(version, token);
 			int j = 0;
-			while(version[j]){
+			while (version[j])
+			{
 				version[j] = tolower(version[j]);
 				j++;
 			}
-			if (strcmp(version, "-v2c")==0){
+			if (strcmp(version, "-v2c") == 0)
+			{
 				datagram[1] = 1;
-			}else{
+			}
+			else
+			{
 				datagram[1] = 2;
 			}
 		}
-		if (i == 3){
+		if (i == 3)
+		{
 			strcpy(comstring, token);
 			int j = 0;
-			while(comstring[j]){
+			while (comstring[j])
+			{
 				comstring[j] = tolower(comstring[j]);
-				datagram[j+3] = comstring[j];
+				datagram[j + 3] = comstring[j];
 				j++;
 			}
-			//bytes community string 
+			// bytes community string
 			datagram[2] = j;
 		}
-		if (i == 4){
+		if (i == 4)
+		{
 			strcpy(oid, token);
 			int j = 0;
 			int a = 0;
-			while(oid[j]){
+			while (oid[j])
+			{
 				datagram[datagram[2] + 3 + j + 1] = oid[j];
 				j++;
 			}
-			//bytes de oid 
-			datagram[datagram[2] + 3 ] = j;
+			// bytes de oid
+			datagram[datagram[2] + 3] = j;
 		}
-		if(i == 5){ 
-			if (datagram[0] == 2){
+		if (i == 5)
+		{
+			if (datagram[0] == 2)
+			{
 				char value[32];
 				strcpy(value, token);
 				int j = 0;
-				while(value[j]){
-					datagram[(datagram[2]+3)+datagram[datagram[2]+3]+2+j] = value[j];
+				while (value[j])
+				{
+					datagram[(datagram[2] + 3) + datagram[datagram[2] + 3] + 2 + j] = value[j];
 					j++;
 				}
-				datagram[(datagram[2]+3)+datagram[datagram[2]+3]+1] = j;
-			}else if(datagram[0] == 3){
+				datagram[(datagram[2] + 3) + datagram[datagram[2] + 3] + 1] = j;
+			}
+			else if (datagram[0] == 3)
+			{
 				char oid2[32];
 				strcpy(oid2, token);
 				int j = 0;
 				int a = 0;
-				while(oid2[j]){
-					datagram[(datagram[2]+3)+datagram[datagram[2]+3] + j +2] = oid2[j];
+				while (oid2[j])
+				{
+					datagram[(datagram[2] + 3) + datagram[datagram[2] + 3] + j + 2] = oid2[j];
 					j++;
 				}
-				//bytes de oid 
-				datagram[(datagram[2]+3)+datagram[datagram[2]+3] +1 ] = j;
+				// bytes de oid
+				datagram[(datagram[2] + 3) + datagram[datagram[2] + 3] + 1] = j;
 			}
 		}
 		i++;
 	}
-	
 }
 
-int main() {
+int main()
+{
 	int sockfd, n, len;
 	int flag = 1;
 	int option = 0;
 	uint8_t buffer[MAXLINE];
 	struct sockaddr_in servaddr;
-	
+
 	// Creating socket fd
-	if ( (sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0 ) {
+	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	{
 		perror("Socket Creation Error");
 		exit(EXIT_FAILURE);
 	}
-	
-	//socket struct params configuration
-	memset(&servaddr, 0, sizeof(servaddr));	
+
+	// socket struct params configuration
+	memset(&servaddr, 0, sizeof(servaddr));
 	servaddr.sin_family = AF_INET;
 	servaddr.sin_port = htons(PORT);
 	servaddr.sin_addr.s_addr = INADDR_ANY;
-		
-	while(flag){
+
+	while (flag)
+	{
 		menu();
 		printf("Option- ");
 		scanf("%d", &option);
 		fflush(stdin);
 		getchar();
-		if(option == 0){
+		if (option == 0)
+		{
 			flag = 0;
 		}
-		else if(option == 1){
+		else if (option == 1)
+		{
 			char snmpCommand[64];
 			char c;
 			int a = 0;
 			printf("Insert SNMP command:\n");
 			fflush(stdin);
-			while((c=getchar()) != '\n')
+			while ((c = getchar()) != '\n')
 				snmpCommand[a++] = c;
 			snmpCommand[a] = '\0';
 			create_datagram(snmpCommand);
 			sendto(sockfd, datagram, 64,
-				MSG_CONFIRM, (const struct sockaddr *) &servaddr,
-					sizeof(servaddr));
-			
+				   0, (const struct sockaddr *)&servaddr,
+				   sizeof(servaddr));
+
 			memset(buffer, 0, MAXLINE);
 			n = recvfrom(sockfd, buffer, 128,
-						MSG_WAITALL, (struct sockaddr *) &servaddr,
-						&len);
-			if(buffer[0] == 0){
+						 MSG_WAITALL, (struct sockaddr *)&servaddr,
+						 &len);
+			if (buffer[0] == 0)
+			{
 				printf("Error:\n");
 				int s = buffer[1];
-				for(int i = 0; i<s;i++){
-					printf("%c", buffer[i+2]);
+				for (int i = 0; i < s; i++)
+				{
+					printf("%c", buffer[i + 2]);
 				}
 				printf("\n");
 			}
-			else{
-				if (datagram[0] == 3){
+			else
+			{
+				if (datagram[0] == 3)
+				{
 					int qnt = buffer[1];
 					int size = 0;
 					int pos = 2;
-					for(int i = 0; i< qnt ; i++){
+					for (int i = 0; i < qnt; i++)
+					{
 						printf("OID: ");
-						size = buffer[pos];		
-						for(int j = 0; j<size; j++){
-							printf("%c", buffer[pos+1+j]);
+						size = buffer[pos];
+						for (int j = 0; j < size; j++)
+						{
+							printf("%c", buffer[pos + 1 + j]);
 						}
 						pos = pos + size + 1;
 						size = buffer[pos];
 						printf("  ");
-						for(int j = 0; j< size; j++){
-							printf("%c", buffer[pos+1+j]);
+						for (int j = 0; j < size; j++)
+						{
+							printf("%c", buffer[pos + 1 + j]);
 						}
 						printf("\n");
 						pos = pos + size + 1;
 					}
-
-				}else{
+				}
+				else
+				{
 					printf("Agent Reply:\n");
 					printf("OID: ");
 					int l = buffer[1];
-					for(int j = 0; j< l; j++){
-						printf("%c", buffer[2+j]);
+					for (int j = 0; j < l; j++)
+					{
+						printf("%c", buffer[2 + j]);
 					}
-					int l_v = buffer[buffer[1] + 2 ];
+					int l_v = buffer[buffer[1] + 2];
 					printf("  ");
-					for (int i = 0; i<l_v; i++){
-						printf("%c", buffer[buffer[1]+3+i]);
+					for (int i = 0; i < l_v; i++)
+					{
+						printf("%c", buffer[buffer[1] + 3 + i]);
 					}
 					printf("\n");
 				}
-				
 			}
 			buffer[n] = '\0';
 		}
