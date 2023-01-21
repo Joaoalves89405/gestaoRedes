@@ -7,17 +7,19 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-
 #define PORT 8080
 #define MAXLINE 1024
 
 FILE *file;
-
+uint8_t datagram[128];
 int port = 0;
 char CommunityString[32];
 char oid[16];
-uint8_t datagram[128];
 
+/**
+ * It reads the mib.txt file and stores the port number, community string, and oid in the variables
+ * port, CommunityString, and oid, respectively
+ */
 void read_mib_conf()
 {
 	char buff[64];
@@ -27,20 +29,29 @@ void read_mib_conf()
 	fclose(file);
 }
 
+/**
+ * It reads the OID from the received datagram, searches for it in the MIB file and if it finds it, it
+ * creates a datagram with the value of the OID and sends it back to the client. If it doesn't find it,
+ * it creates a datagram with an error message and sends it back to the client
+ *
+ * @param buffer the buffer that contains the SNMP request
+ */
 void snmpget(uint8_t buffer[64])
 {
 	memset(datagram, 0, 128);
 	char oid1[16];
-	int t_oid = buffer[(buffer[2]) + 3];
-	for (int i = 0; i < t_oid; i++)
-	{
-		oid1[i] = buffer[(buffer[2]) + 3 + 1 + i];
-	}
+	int oid = buffer[(buffer[2]) + 3];
 	char fbuff[64];
 	int j = 1;
 	int found = 0;
 	char value[32];
 	file = fopen("mib.txt", "r");
+
+	for (int i = 0; i < oid; i++)
+	{
+		oid1[i] = buffer[(buffer[2]) + 3 + 1 + i];
+	}
+
 	while (fgets(fbuff, sizeof(fbuff), file) != NULL && found == 0)
 	{
 		char *token = NULL;
@@ -56,54 +67,60 @@ void snmpget(uint8_t buffer[64])
 			}
 			if (j == 4 && found)
 			{
-				// valor encontrado criar datagram e enviar
 				strcpy(value, token);
 				datagram[0] = 1;
-				datagram[1] = t_oid;
-				for (int i = 0; i < t_oid; i++)
+				datagram[1] = oid;
+				for (int i = 0; i < oid; i++)
 				{
 					datagram[i + 2] = oid1[i];
 				}
-				datagram[t_oid + 2] = strlen(value);
+				datagram[oid + 2] = strlen(value);
 				for (int i = 0; i < strlen(value); i++)
 				{
-					datagram[t_oid + 3 + i] = value[i];
+					datagram[oid + 3 + i] = value[i];
 				}
-				printf("Sucesso\n");
+				printf("Sucess\n");
 			}
 			j++;
 		}
 	}
 	fclose(file);
-	// value not found
 	if (found == 0)
 	{
-		printf(" Insucesso\n");
+		printf("Fail\n");
 		datagram[0] = 0;
-		char erro[32] = "OID não encontrado";
+		char erro[32] = "OID not found";
 		int size = strlen(erro);
 		datagram[1] = size;
 		sprintf(datagram + 2, "%s", erro);
 	}
 }
 
+/**
+ * It reads the file line by line, and when it finds the OID that was requested, it reads the next line
+ * and returns the OID and value of that line
+ *
+ * @param buffer the buffer that contains the SNMP request
+ */
 void snmpgetnext(uint8_t buffer[64])
 {
 	memset(datagram, 0, 128);
 	char oid1[16];
-	int t_oid = buffer[(buffer[2]) + 3];
-	for (int i = 0; i < t_oid; i++)
-	{
-		oid1[i] = buffer[(buffer[2]) + 3 + 1 + i];
-	}
+	int oid = buffer[(buffer[2]) + 3];
 	char fbuff[64];
 	int j = 1;
 	int found = 0;
 	int next = 0;
-	char valor[32];
+	char value[32];
 	char oid_next[32];
-	memset(valor, 0, 32);
+	memset(value, 0, 32);
 	file = fopen("mib.txt", "r");
+
+	for (int i = 0; i < oid; i++)
+	{
+		oid1[i] = buffer[(buffer[2]) + 3 + 1 + i];
+	}
+
 	while (fgets(fbuff, sizeof(fbuff), file) != NULL && next == 0)
 	{
 		char *token = NULL;
@@ -127,43 +144,39 @@ void snmpgetnext(uint8_t buffer[64])
 			}
 			if (j == 4 && next)
 			{
-				// valor encontrado criar
-				strcpy(valor, token);
+				strcpy(value, token);
 				datagram[0] = 1;
 				datagram[1] = strlen(oid_next);
-				for (int i = 0; i < t_oid; i++)
+				for (int i = 0; i < oid; i++)
 				{
 					datagram[i + 2] = oid_next[i];
 				}
-				datagram[strlen(oid_next) + 2] = strlen(valor);
-				for (int i = 0; i < strlen(valor); i++)
+				datagram[strlen(oid_next) + 2] = strlen(value);
+				for (int i = 0; i < strlen(value); i++)
 				{
-					datagram[t_oid + 3 + i] = valor[i];
+					datagram[oid + 3 + i] = value[i];
 				}
-				printf("Sucesso\n");
+				printf("Sucess\n");
 			}
 			j++;
 		}
 	}
 
 	fclose(file);
-	if (strlen(valor) <= 1)
+	if (strlen(value) <= 1)
 	{
-		// nao existia next oid nesse grupo!
-		// printf("NAO HAVIA VALOR ABAIXO DESTE\n");
-		printf("Insucesso\n");
+		printf("Fail\n");
 		datagram[0] = 0;
-		char erro[32] = "Erro- OID seguinte inexistente";
+		char erro[32] = "Error- next OID doesn't exists";
 		int size = strlen(erro);
 		datagram[1] = size;
 		sprintf(datagram + 2, "%s", erro);
 	}
 	if (found == 0)
 	{
-		// valor nao encontrado criar
-		printf("Insucesso\n");
+		printf("Fail\n");
 		datagram[0] = 0;
-		char erro[32] = "OID não encontrado";
+		char erro[32] = "OID not found";
 		int size = strlen(erro);
 		datagram[1] = size;
 		sprintf(datagram + 2, "%s", erro);
@@ -465,28 +478,23 @@ int main()
 		}
 		if ((buffer[1]) == 1 && strcmp(comun_string, CommunityString) == 0)
 		{
-			// get
 			if (buffer[0] == 0)
 			{
-				// buscar valor do oid
 				printf("SNMPGET\n");
 				snmpget(buffer);
 			}
 			else if ((buffer[0]) == 1)
-			{ // getnext
-				// buscar valor do seguinte oid
+			{
 				printf("SNMPGETNEXT\n");
 				snmpgetnext(buffer);
 			}
 			else if ((buffer[0]) == 2)
-			{ // set
-				// alterar valor caso seja valido para se alterar
+			{
 				printf("SNMPSET\n");
 				snmpset(buffer);
 			}
 			else if ((buffer[0]) == 3)
-			{ // getbulk
-				// todos os valores compreendidos nos oid dados
+			{
 				printf("SNMPGETBULK\n");
 				snmpgetbulk(buffer);
 			}
@@ -494,7 +502,6 @@ int main()
 		else
 		{
 			printf("Failed\n");
-			// valor nao encontrado criar datagram e enviar
 			datagram[0] = 0;
 			char erro[64] = "Version or community string incorrect";
 			int size = strlen(erro);
