@@ -38,6 +38,7 @@ void create_datagram(char *snmpCommand)
 	char oid[64];
 	for (token = strtok(snmpCommand, " "); token != NULL; token = strtok(NULL, " "))
 	{
+		// first parameter of datagram
 		if (i == 1)
 		{
 			memset(datagram, 0, 32);
@@ -65,7 +66,8 @@ void create_datagram(char *snmpCommand)
 				datagram[0] = 3;
 			}
 		}
-		// se for versao correta escrevo um 1 senao um 2
+		// second parameter of the datagram (version)
+		// if the version written in terminal is "v2c" writes "1" to the datagram otherwise it writes "2"
 		if (i == 2)
 		{
 			strcpy(version, token);
@@ -84,6 +86,7 @@ void create_datagram(char *snmpCommand)
 				datagram[1] = 2;
 			}
 		}
+		// community string bytes
 		if (i == 3)
 		{
 			strcpy(comstring, token);
@@ -94,9 +97,9 @@ void create_datagram(char *snmpCommand)
 				datagram[j + 3] = comstring[j];
 				j++;
 			}
-			// bytes community string
 			datagram[2] = j;
 		}
+		// OID bytes
 		if (i == 4)
 		{
 			strcpy(oid, token);
@@ -107,9 +110,9 @@ void create_datagram(char *snmpCommand)
 				datagram[datagram[2] + 3 + j + 1] = oid[j];
 				j++;
 			}
-			// bytes de oid
 			datagram[datagram[2] + 3] = j;
 		}
+		// for snmpset or snmpgetbulk commands
 		if (i == 5)
 		{
 			if (datagram[0] == 2)
@@ -135,7 +138,6 @@ void create_datagram(char *snmpCommand)
 					datagram[(datagram[2] + 3) + datagram[datagram[2] + 3] + j + 2] = oid2[j];
 					j++;
 				}
-				// bytes de oid
 				datagram[(datagram[2] + 3) + datagram[datagram[2] + 3] + 1] = j;
 			}
 		}

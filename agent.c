@@ -13,25 +13,23 @@
 
 FILE *file;
 
-int porta = 0;
-char mib_comun_string[32];
+int port = 0;
+char CommunityString[32];
 char oid[16];
+uint8_t datagram[128];
 
-uint8_t pacote[128];
-// tpm erro- 0
-// tpm sucesso- 1
 void read_mib_conf()
 {
 	char buff[64];
-	file = fopen("mib_virtual.txt", "r");
-	fscanf(file, "%d %s %s", &porta, mib_comun_string, oid);
-	printf("%d %s %s\n", porta, mib_comun_string, oid);
+	file = fopen("mib.txt", "r");
+	fscanf(file, "%d %s %s", &port, CommunityString, oid);
+	printf("%d %s %s\n", port, CommunityString, oid);
 	fclose(file);
 }
 
 void snmpget(uint8_t buffer[64])
 {
-	memset(pacote, 0, 128);
+	memset(datagram, 0, 128);
 	char oid1[16];
 	int t_oid = buffer[(buffer[2]) + 3];
 	for (int i = 0; i < t_oid; i++)
@@ -41,8 +39,8 @@ void snmpget(uint8_t buffer[64])
 	char fbuff[64];
 	int j = 1;
 	int found = 0;
-	char valor[32];
-	file = fopen("mib_virtual.txt", "r");
+	char value[32];
+	file = fopen("mib.txt", "r");
 	while (fgets(fbuff, sizeof(fbuff), file) != NULL && found == 0)
 	{
 		char *token = NULL;
@@ -58,18 +56,18 @@ void snmpget(uint8_t buffer[64])
 			}
 			if (j == 4 && found)
 			{
-				// valor encontrado criar pacote e enviar
-				strcpy(valor, token);
-				pacote[0] = 1;
-				pacote[1] = t_oid;
+				// valor encontrado criar datagram e enviar
+				strcpy(value, token);
+				datagram[0] = 1;
+				datagram[1] = t_oid;
 				for (int i = 0; i < t_oid; i++)
 				{
-					pacote[i + 2] = oid1[i];
+					datagram[i + 2] = oid1[i];
 				}
-				pacote[t_oid + 2] = strlen(valor);
-				for (int i = 0; i < strlen(valor); i++)
+				datagram[t_oid + 2] = strlen(value);
+				for (int i = 0; i < strlen(value); i++)
 				{
-					pacote[t_oid + 3 + i] = valor[i];
+					datagram[t_oid + 3 + i] = value[i];
 				}
 				printf("Sucesso\n");
 			}
@@ -77,21 +75,21 @@ void snmpget(uint8_t buffer[64])
 		}
 	}
 	fclose(file);
+	// value not found
 	if (found == 0)
 	{
 		printf(" Insucesso\n");
-		// valor nao encontrado criar pacote e enviar
-		pacote[0] = 0;
+		datagram[0] = 0;
 		char erro[32] = "OID não encontrado";
 		int size = strlen(erro);
-		pacote[1] = size;
-		sprintf(pacote + 2, "%s", erro);
+		datagram[1] = size;
+		sprintf(datagram + 2, "%s", erro);
 	}
 }
 
 void snmpgetnext(uint8_t buffer[64])
 {
-	memset(pacote, 0, 128);
+	memset(datagram, 0, 128);
 	char oid1[16];
 	int t_oid = buffer[(buffer[2]) + 3];
 	for (int i = 0; i < t_oid; i++)
@@ -105,7 +103,7 @@ void snmpgetnext(uint8_t buffer[64])
 	char valor[32];
 	char oid_next[32];
 	memset(valor, 0, 32);
-	file = fopen("mib_virtual.txt", "r");
+	file = fopen("mib.txt", "r");
 	while (fgets(fbuff, sizeof(fbuff), file) != NULL && next == 0)
 	{
 		char *token = NULL;
@@ -131,16 +129,16 @@ void snmpgetnext(uint8_t buffer[64])
 			{
 				// valor encontrado criar
 				strcpy(valor, token);
-				pacote[0] = 1;
-				pacote[1] = strlen(oid_next);
+				datagram[0] = 1;
+				datagram[1] = strlen(oid_next);
 				for (int i = 0; i < t_oid; i++)
 				{
-					pacote[i + 2] = oid_next[i];
+					datagram[i + 2] = oid_next[i];
 				}
-				pacote[strlen(oid_next) + 2] = strlen(valor);
+				datagram[strlen(oid_next) + 2] = strlen(valor);
 				for (int i = 0; i < strlen(valor); i++)
 				{
-					pacote[t_oid + 3 + i] = valor[i];
+					datagram[t_oid + 3 + i] = valor[i];
 				}
 				printf("Sucesso\n");
 			}
@@ -154,27 +152,27 @@ void snmpgetnext(uint8_t buffer[64])
 		// nao existia next oid nesse grupo!
 		// printf("NAO HAVIA VALOR ABAIXO DESTE\n");
 		printf("Insucesso\n");
-		pacote[0] = 0;
+		datagram[0] = 0;
 		char erro[32] = "Erro- OID seguinte inexistente";
 		int size = strlen(erro);
-		pacote[1] = size;
-		sprintf(pacote + 2, "%s", erro);
+		datagram[1] = size;
+		sprintf(datagram + 2, "%s", erro);
 	}
 	if (found == 0)
 	{
 		// valor nao encontrado criar
 		printf("Insucesso\n");
-		pacote[0] = 0;
+		datagram[0] = 0;
 		char erro[32] = "OID não encontrado";
 		int size = strlen(erro);
-		pacote[1] = size;
-		sprintf(pacote + 2, "%s", erro);
+		datagram[1] = size;
+		sprintf(datagram + 2, "%s", erro);
 	}
 }
 
 void snmpset(uint8_t buffer[64])
 {
-	memset(pacote, 0, 128);
+	memset(datagram, 0, 128);
 	FILE *temp;
 	char oid1[16];
 	int t_oid = buffer[(buffer[2]) + 3];
@@ -206,7 +204,7 @@ void snmpset(uint8_t buffer[64])
 	int j = 1;
 	int found = 0;
 	char valor[32];
-	file = fopen("mib_virtual.txt", "r");
+	file = fopen("mib.txt", "r");
 	temp = fopen("temp.txt", "w");
 	int variavel = 0;
 	char var[32];
@@ -255,21 +253,21 @@ void snmpset(uint8_t buffer[64])
 			}
 			if (j == 4 && read_write == 1 && flag == 0)
 			{
-				// valor encontrado criar pacote e enviar
+				// valor encontrado criar datagram e enviar
 				flag = 1;
 				strcpy(valor, token);
-				pacote[0] = 1;
-				pacote[1] = t_oid;
+				datagram[0] = 1;
+				datagram[1] = t_oid;
 				for (int i = 0; i < t_oid; i++)
 				{
-					pacote[i + 2] = oid1[i];
+					datagram[i + 2] = oid1[i];
 				}
-				pacote[t_oid + 2] = strlen(val);
+				datagram[t_oid + 2] = strlen(val);
 				for (int i = 0; i < strlen(val); i++)
 				{
-					pacote[t_oid + 3 + i] = val[i];
+					datagram[t_oid + 3 + i] = val[i];
 				}
-				printf("Sucesso\n");
+				printf("Sucess\n");
 				sprintf(aux, "%s %s %s %s\n", oid1, var, permi, val);
 			}
 			j++;
@@ -281,7 +279,7 @@ void snmpset(uint8_t buffer[64])
 	if (found)
 	{
 		char buff[128];
-		file = fopen("mib_virtual.txt", "w");
+		file = fopen("mib.txt", "w");
 		temp = fopen("temp.txt", "r");
 		while (fgets(buff, sizeof(buff), temp) != NULL)
 		{
@@ -293,41 +291,41 @@ void snmpset(uint8_t buffer[64])
 	else if (found == 0)
 	{
 		// nao encontrado
-		printf("Insucesso\n");
-		// valor nao encontrado criar pacote e enviar
-		pacote[0] = 0;
-		char erro[32] = "OID não encontrado";
+		printf("Fail\n");
+		// valor nao encontrado criar datagram e enviar
+		datagram[0] = 0;
+		char erro[32] = "OID not found";
 		int size = strlen(erro);
-		pacote[1] = size;
-		sprintf(pacote + 2, "%s", erro);
+		datagram[1] = size;
+		sprintf(datagram + 2, "%s", erro);
 	}
 	if (variavel == 0)
 	{
 		// variavel incompativeis
-		printf("Insucesso\n");
-		// valor nao encontrado criar pacote e enviar
-		pacote[0] = 0;
-		char erro[32] = "Variaveis incompativeis";
+		printf("Fail\n");
+		// valor nao encontrado criar datagram e enviar
+		datagram[0] = 0;
+		char erro[32] = "Unmatched variables";
 		int size = strlen(erro);
-		pacote[1] = size;
-		sprintf(pacote + 2, "%s", erro);
+		datagram[1] = size;
+		sprintf(datagram + 2, "%s", erro);
 	}
 	else if (read_write == 0)
 	{
 		// sem permissao para escrever
-		printf("Insucesso\n");
-		// valor nao encontrado criar pacote e enviar
-		pacote[0] = 0;
-		char erro[32] = "Sem permissão";
+		printf("Fail\n");
+		// valor nao encontrado criar datagram e enviar
+		datagram[0] = 0;
+		char erro[32] = "No permission to write";
 		int size = strlen(erro);
-		pacote[1] = size;
-		sprintf(pacote + 2, "%s", erro);
+		datagram[1] = size;
+		sprintf(datagram + 2, "%s", erro);
 	}
 }
 
 void snmpgetbulk(uint8_t buffer[64])
 {
-	memset(pacote, 0, 128);
+	memset(datagram, 0, 128);
 	char oid1[16];
 	int t_oid = buffer[(buffer[2]) + 3];
 	for (int i = 0; i < t_oid; i++)
@@ -349,7 +347,7 @@ void snmpgetbulk(uint8_t buffer[64])
 	int found = 0;
 	int next = 0;
 	char valor[32];
-	file = fopen("mib_virtual.txt", "r");
+	file = fopen("mib.txt", "r");
 	while (fgets(fbuff, sizeof(fbuff), file) != NULL && next == 0)
 	{
 		char *token = NULL;
@@ -370,7 +368,7 @@ void snmpgetbulk(uint8_t buffer[64])
 			}
 			if (j == 4 && found)
 			{
-				// valor encontrado criar pacote e enviar
+				// valor encontrado criar datagram e enviar
 				strcpy(valores[pos_x], token);
 				valores[pos_x][strlen(valores[pos_x]) - 1] = '\0';
 				// printf("%s\n", valores[pos_x]);
@@ -388,50 +386,49 @@ void snmpgetbulk(uint8_t buffer[64])
 	if (found == 0)
 	{
 		printf(" Insucesso\n");
-		// valor nao encontrado criar pacote e enviar
-		pacote[0] = 0;
+		// valor nao encontrado criar datagram e enviar
+		datagram[0] = 0;
 		char erro[32] = "OID não encontrado";
 		int size = strlen(erro);
-		pacote[1] = size;
-		sprintf(pacote + 2, "%s", erro);
+		datagram[1] = size;
+		sprintf(datagram + 2, "%s", erro);
 	}
 	else
 	{
-		pacote[0] = 1;
-		pacote[1] = pos_x;
+		datagram[0] = 1;
+		datagram[1] = pos_x;
 		int pos = 0;
 		pos = 2;
 		for (int i = 0; i < pos_x; i++)
 		{
-			pacote[pos] = strlen(bulk_oids[i]);
+			datagram[pos] = strlen(bulk_oids[i]);
 			for (int j = 0; j < strlen(bulk_oids[i]); j++)
 			{
-				pacote[pos + 1 + j] = bulk_oids[i][j];
+				datagram[pos + 1 + j] = bulk_oids[i][j];
 			}
-			pos = pos + pacote[pos] + 1;
-			pacote[pos] = strlen(valores[i]);
+			pos = pos + datagram[pos] + 1;
+			datagram[pos] = strlen(valores[i]);
 			for (int j = 0; j < strlen(valores[i]); j++)
 			{
-				pacote[pos + 1 + j] = valores[i][j];
+				datagram[pos + 1 + j] = valores[i][j];
 			}
-			pos = pos + pacote[pos] + 1;
+			pos = pos + datagram[pos] + 1;
 		}
 	}
 }
 
-// Driver code
 int main()
 {
-	int sockfd;
+	int sockfd, len, n;
 	uint8_t buffer[MAXLINE];
-	char *hello = "Hello from server";
+	char *hello = "First message from server";
 	struct sockaddr_in servaddr, cliaddr;
 	read_mib_conf();
 
 	// Creating socket file descriptor
 	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
 	{
-		perror("socket creation failed");
+		perror("Socket creation failed");
 		exit(EXIT_FAILURE);
 	}
 
@@ -441,19 +438,17 @@ int main()
 	// Filling server information
 	servaddr.sin_family = AF_INET; // IPv4
 	servaddr.sin_addr.s_addr = INADDR_ANY;
-	servaddr.sin_port = htons(porta);
+	servaddr.sin_port = htons(port);
 
 	// Bind the socket with the server address
 	if (bind(sockfd, (const struct sockaddr *)&servaddr,
 			 sizeof(servaddr)) < 0)
 	{
-		perror("bind failed");
+		perror("Bind failed");
 		exit(EXIT_FAILURE);
 	}
+	len = sizeof(cliaddr);
 
-	int len, n;
-
-	len = sizeof(cliaddr); // len is value/result
 	while (1)
 	{
 		n = recvfrom(sockfd, buffer, MAXLINE,
@@ -468,10 +463,8 @@ int main()
 		{
 			comun_string[i] = (char)buffer[i + 3];
 		}
-		// printf("%s->%s\n", comun_string, mib_comun_string);
-		if ((buffer[1]) == 1 && strcmp(comun_string, mib_comun_string) == 0)
+		if ((buffer[1]) == 1 && strcmp(comun_string, CommunityString) == 0)
 		{
-			// printf("SUCCESS\n");
 			// get
 			if (buffer[0] == 0)
 			{
@@ -500,17 +493,16 @@ int main()
 		}
 		else
 		{
-			printf("Insucesso\n");
-			// valor nao encontrado criar pacote e enviar
-			pacote[0] = 0;
-			char erro[64] = "Versao ou Community string incorretas";
+			printf("Failed\n");
+			// valor nao encontrado criar datagram e enviar
+			datagram[0] = 0;
+			char erro[64] = "Version or community string incorrect";
 			int size = strlen(erro);
-			pacote[1] = size;
-			sprintf(pacote + 2, "%s", erro);
+			datagram[1] = size;
+			sprintf(datagram + 2, "%s", erro);
 		}
 		buffer[n] = '\0';
-		// printf("Client : %s\n", buffer);
-		sendto(sockfd, pacote, 128,
+		sendto(sockfd, datagram, 128,
 			   0, (const struct sockaddr *)&cliaddr,
 			   len);
 	}
