@@ -20,10 +20,15 @@ char oid[16];
  * It reads the mib.txt file and stores the port number, community string, and oid in the variables
  * port, CommunityString, and oid, respectively
  */
-void read_mib_conf()
+void readMIB()
 {
 	char buff[64];
 	file = fopen("mib.txt", "r");
+	if (file == NULL)
+	{
+		perror("Error opening file mib.txt");
+		return;
+	}
 	fscanf(file, "%d %s %s", &port, CommunityString, oid);
 	printf("%d %s %s\n", port, CommunityString, oid);
 	fclose(file);
@@ -46,6 +51,11 @@ void snmpget(uint8_t buffer[64])
 	int found = 0;
 	char value[32];
 	file = fopen("mib.txt", "r");
+	if (file == NULL)
+	{
+		perror("Error opening file mib.txt");
+		return;
+	}
 
 	for (int i = 0; i < oid; i++)
 	{
@@ -115,6 +125,11 @@ void snmpgetnext(uint8_t buffer[64])
 	char oid_next[32];
 	memset(value, 0, 32);
 	file = fopen("mib.txt", "r");
+	if (file == NULL)
+	{
+		perror("Error opening file mib.txt");
+		return;
+	}
 
 	for (int i = 0; i < oid; i++)
 	{
@@ -187,44 +202,60 @@ void snmpset(uint8_t buffer[64])
 {
 	memset(datagram, 0, 128);
 	FILE *temp;
+	int sizeOID = buffer[(buffer[2]) + 3];
+	int sizeValue = buffer[buffer[2] + 3 + sizeOID + 1];
+	int count = 0;
+	int isInt = 0;
+	int j = 1;
+	int found = 0;
+	int variavel = 0;
+	int read_write = 0;
+	int flag = 0;
 	char oid1[16];
-	int t_oid = buffer[(buffer[2]) + 3];
-	for (int i = 0; i < t_oid; i++)
+	char val[32];
+	char fbuff[256];
+	char value[32];
+	char var[32];
+	char permission[8];
+	char aux[256];
+	memset(val, 0, 32);
+
+	file = fopen("mib.txt", "r");
+
+	if (file == NULL)
+	{
+		perror("Error opening file mib.txt");
+		return;
+	}
+
+	temp = fopen("temp.txt", "w");
+
+	if (temp == NULL)
+	{
+		perror("Error opening file temp.txt");
+		return;
+	}
+
+	for (int i = 0; i < sizeOID; i++)
 	{
 		oid1[i] = buffer[(buffer[2]) + 3 + 1 + i];
 	}
-	int s_v = buffer[buffer[2] + 3 + t_oid + 1];
-	char val[32];
-	memset(val, 0, 32);
-	for (int i = 0; i < s_v; i++)
+
+	for (int i = 0; i < sizeValue; i++)
 	{
-		val[i] = buffer[buffer[2] + 3 + t_oid + 1 + i + 1];
+		val[i] = buffer[buffer[2] + 3 + sizeOID + 1 + i + 1];
 	}
-	int count = 0;
-	char int_ou_nao = 0;
-	for (int i = 0; i < s_v; i++)
+	for (int i = 0; i < sizeValue; i++)
 	{
-		if (buffer[buffer[2] + 3 + t_oid + 1 + i + 1] <= 57 && buffer[buffer[2] + 3 + t_oid + 1 + i + 1] >= 48)
+		if (buffer[buffer[2] + 3 + sizeOID + 1 + i + 1] <= 57 && buffer[buffer[2] + 3 + sizeOID + 1 + i + 1] >= 48)
 		{
 			count++;
 		}
 	}
-	if (count == s_v)
+	if (count == sizeValue)
 	{
-		int_ou_nao = 1;
+		isInt = 1;
 	}
-	char fbuff[256];
-	int j = 1;
-	int found = 0;
-	char valor[32];
-	file = fopen("mib.txt", "r");
-	temp = fopen("temp.txt", "w");
-	int variavel = 0;
-	char var[32];
-	int read_write = 0;
-	char permi[8];
-	char aux[256];
-	int flag = 0;
 	while (fgets(fbuff, sizeof(fbuff), file) != NULL)
 	{
 		memset(aux, 0, 256);
@@ -242,7 +273,7 @@ void snmpset(uint8_t buffer[64])
 			}
 			if (j == 2 && found == 1 && flag == 0)
 			{
-				if ((strcmp(token, "Integer") == 0 && int_ou_nao == 1) || (strcmp(token, "Integer") != 0 && int_ou_nao != 1))
+				if ((strcmp(token, "Integer") == 0 && isInt == 1) || (strcmp(token, "Integer") != 0 && isInt != 1))
 				{
 					variavel = 1;
 					strcpy(var, token);
@@ -257,7 +288,7 @@ void snmpset(uint8_t buffer[64])
 				if (strcmp(token, "rw") == 0)
 				{
 					read_write = 1;
-					strcpy(permi, token);
+					strcpy(permission, token);
 				}
 				else
 				{
@@ -266,22 +297,21 @@ void snmpset(uint8_t buffer[64])
 			}
 			if (j == 4 && read_write == 1 && flag == 0)
 			{
-				// valor encontrado criar datagram e enviar
 				flag = 1;
-				strcpy(valor, token);
+				strcpy(value, token);
 				datagram[0] = 1;
-				datagram[1] = t_oid;
-				for (int i = 0; i < t_oid; i++)
+				datagram[1] = sizeOID;
+				for (int i = 0; i < sizeOID; i++)
 				{
 					datagram[i + 2] = oid1[i];
 				}
-				datagram[t_oid + 2] = strlen(val);
+				datagram[sizeOID + 2] = strlen(val);
 				for (int i = 0; i < strlen(val); i++)
 				{
-					datagram[t_oid + 3 + i] = val[i];
+					datagram[sizeOID + 3 + i] = val[i];
 				}
 				printf("Sucess\n");
-				sprintf(aux, "%s %s %s %s\n", oid1, var, permi, val);
+				sprintf(aux, "%s %s %s %s\n", oid1, var, permission, val);
 			}
 			j++;
 		}
@@ -293,7 +323,17 @@ void snmpset(uint8_t buffer[64])
 	{
 		char buff[128];
 		file = fopen("mib.txt", "w");
+		if (file == NULL)
+		{
+			perror("Error opening file mib.txt");
+			return;
+		}
 		temp = fopen("temp.txt", "r");
+		if (temp == NULL)
+		{
+			perror("Error opening file temp.txt");
+			return;
+		}
 		while (fgets(buff, sizeof(buff), temp) != NULL)
 		{
 			fwrite(buff, strlen(buff), 1, file);
@@ -303,9 +343,7 @@ void snmpset(uint8_t buffer[64])
 	}
 	else if (found == 0)
 	{
-		// nao encontrado
 		printf("Fail\n");
-		// valor nao encontrado criar datagram e enviar
 		datagram[0] = 0;
 		char erro[32] = "OID not found";
 		int size = strlen(erro);
@@ -314,9 +352,7 @@ void snmpset(uint8_t buffer[64])
 	}
 	if (variavel == 0)
 	{
-		// variavel incompativeis
 		printf("Fail\n");
-		// valor nao encontrado criar datagram e enviar
 		datagram[0] = 0;
 		char erro[32] = "Unmatched variables";
 		int size = strlen(erro);
@@ -325,9 +361,7 @@ void snmpset(uint8_t buffer[64])
 	}
 	else if (read_write == 0)
 	{
-		// sem permissao para escrever
 		printf("Fail\n");
-		// valor nao encontrado criar datagram e enviar
 		datagram[0] = 0;
 		char erro[32] = "No permission to write";
 		int size = strlen(erro);
@@ -351,7 +385,6 @@ void snmpgetbulk(uint8_t buffer[64])
 	{
 		oid2[i] = buffer[(buffer[2] + 3) + buffer[buffer[2] + 3] + i + 2];
 	}
-	// printf("%s->%s\n", oid1, oid2);
 	char valores[16][32];
 	char bulk_oids[16][32];
 	char fbuff[64];
@@ -361,6 +394,11 @@ void snmpgetbulk(uint8_t buffer[64])
 	int next = 0;
 	char valor[32];
 	file = fopen("mib.txt", "r");
+	if (file == NULL)
+	{
+		perror("Error opening file mib.txt");
+		return;
+	}
 	while (fgets(fbuff, sizeof(fbuff), file) != NULL && next == 0)
 	{
 		char *token = NULL;
@@ -436,7 +474,7 @@ int main()
 	uint8_t buffer[MAXLINE];
 	char *hello = "First message from server";
 	struct sockaddr_in servaddr, cliaddr;
-	read_mib_conf();
+	readMIB();
 
 	// Creating socket file descriptor
 	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
@@ -464,15 +502,13 @@ int main()
 
 	while (1)
 	{
-		n = recvfrom(sockfd, buffer, MAXLINE,
-					 MSG_WAITALL, (struct sockaddr *)&cliaddr,
-					 &len);
+		n = recvfrom(sockfd, buffer, MAXLINE, MSG_WAITALL, (struct sockaddr *)&cliaddr, &len);
 
-		int s_cmst = (int)(buffer[2]);
-
+		int CString = (int)(buffer[2]);
 		char comun_string[16];
 		memset(comun_string, 0, 16);
-		for (int i = 0; i < s_cmst; i++)
+
+		for (int i = 0; i < CString; i++)
 		{
 			comun_string[i] = (char)buffer[i + 3];
 		}
@@ -509,9 +545,7 @@ int main()
 			sprintf(datagram + 2, "%s", erro);
 		}
 		buffer[n] = '\0';
-		sendto(sockfd, datagram, 128,
-			   0, (const struct sockaddr *)&cliaddr,
-			   len);
+		sendto(sockfd, datagram, 128, 0, (const struct sockaddr *)&cliaddr, len);
 	}
 	return 0;
 }
