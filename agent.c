@@ -208,7 +208,7 @@ void snmpset(uint8_t buffer[64])
 	int isInt = 0;
 	int j = 1;
 	int found = 0;
-	int variavel = 0;
+	int variable = 0;
 	int read_write = 0;
 	int flag = 0;
 	char oid1[16];
@@ -275,7 +275,7 @@ void snmpset(uint8_t buffer[64])
 			{
 				if ((strcmp(token, "Integer") == 0 && isInt == 1) || (strcmp(token, "Integer") != 0 && isInt != 1))
 				{
-					variavel = 1;
+					variable = 1;
 					strcpy(var, token);
 				}
 				else
@@ -283,7 +283,7 @@ void snmpset(uint8_t buffer[64])
 					flag = 1;
 				}
 			}
-			if (j == 3 && variavel == 1 && flag == 0)
+			if (j == 3 && variable == 1 && flag == 0)
 			{
 				if (strcmp(token, "rw") == 0)
 				{
@@ -350,7 +350,7 @@ void snmpset(uint8_t buffer[64])
 		datagram[1] = size;
 		sprintf(datagram + 2, "%s", erro);
 	}
-	if (variavel == 0)
+	if (variable == 0)
 	{
 		printf("Fail\n");
 		datagram[0] = 0;
@@ -416,7 +416,6 @@ int main()
 		}
 		if ((buffer[1]) == 1 && strcmp(comun_string, CommunityString) == 0)
 		{
-			printf("AQUI:%u\n", buffer[0]);
 			if (buffer[0] == 0)
 			{
 				printf("SNMPGET\n");

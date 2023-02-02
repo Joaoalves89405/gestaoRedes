@@ -12,133 +12,8 @@
 #define MAXLINE 1024
 uint8_t datagram[128];
 
-void menu()
-{
-	printf("\n");
-	printf("---------SNMPv2c Managment App---------\n");
-	printf("Press 1 to insert SNPM commands\n");
-	printf("Press 0 to exit\n");
-	printf("\n");
-	printf("-----------Accepted Commands-----------\n");
-	printf("snmpget -v2c public [OID]\n");
-	printf("snmpgetnext -v2c public [OID]\n");
-	printf("snmpset -v2c public [OID] [VALUE]\n");
-	printf("\n");
-}
-
-void create_datagram(char *snmpCommand)
-{
-	memset(datagram, 0, 128);
-	char *token = NULL;
-	int i = 1;
-	char snmp[16];
-	char version[8];
-	char comstring[16];
-	char oid[64];
-	for (token = strtok(snmpCommand, " "); token != NULL; token = strtok(NULL, " "))
-	{
-		// first parameter of datagram
-		if (i == 1)
-		{
-			memset(datagram, 0, 32);
-			strcpy(snmp, token);
-			int j = 0;
-			while (snmp[j])
-			{
-				snmp[j] = tolower(snmp[j]);
-				j++;
-			}
-			if (strcmp(snmp, "snmpget") == 0)
-			{
-				datagram[0] = 0;
-			}
-			else if (strcmp(snmp, "snmpgetnext") == 0)
-			{
-				datagram[0] = 1;
-			}
-			else if (strcmp(snmp, "snmpset") == 0)
-			{
-				datagram[0] = 2;
-			}
-		}
-		// second parameter of the datagram (version)
-		// if the version written in terminal is "v2c" writes "1" to the datagram otherwise it writes "2"
-		if (i == 2)
-		{
-			strcpy(version, token);
-			int j = 0;
-			while (version[j])
-			{
-				version[j] = tolower(version[j]);
-				j++;
-			}
-			if (strcmp(version, "-v2c") == 0)
-			{
-				datagram[1] = 1;
-			}
-			else
-			{
-				datagram[1] = 2;
-			}
-		}
-		// community string bytes
-		if (i == 3)
-		{
-			strcpy(comstring, token);
-			int j = 0;
-			while (comstring[j])
-			{
-				comstring[j] = tolower(comstring[j]);
-				datagram[j + 3] = comstring[j];
-				j++;
-			}
-			datagram[2] = j;
-		}
-		// OID bytes
-		if (i == 4)
-		{
-			strcpy(oid, token);
-			int j = 0;
-			int a = 0;
-			while (oid[j])
-			{
-				datagram[datagram[2] + 3 + j + 1] = oid[j];
-				j++;
-			}
-			datagram[datagram[2] + 3] = j;
-		}
-		// for snmpset or snmpgetbulk commands
-		if (i == 5)
-		{
-			if (datagram[0] == 2)
-			{
-				char value[32];
-				strcpy(value, token);
-				int j = 0;
-				while (value[j])
-				{
-					datagram[(datagram[2] + 3) + datagram[datagram[2] + 3] + 2 + j] = value[j];
-					j++;
-				}
-				datagram[(datagram[2] + 3) + datagram[datagram[2] + 3] + 1] = j;
-			}
-			else if (datagram[0] == 3)
-			{
-				char oid2[32];
-				strcpy(oid2, token);
-				int j = 0;
-				int a = 0;
-				while (oid2[j])
-				{
-					datagram[(datagram[2] + 3) + datagram[datagram[2] + 3] + j + 2] = oid2[j];
-					j++;
-				}
-				datagram[(datagram[2] + 3) + datagram[datagram[2] + 3] + 1] = j;
-			}
-		}
-		i++;
-	}
-}
+void create_datagram(char *snmpCommand);
+void menu();
 
 int main()
 {
@@ -203,51 +78,150 @@ int main()
 			}
 			else
 			{
-				if (datagram[0] == 3)
+				printf("Agent Reply: ");
+				printf("OID : ");
+				int l = buffer[1];
+				for (int j = 0; j < l; j++)
 				{
-					int qnt = buffer[1];
-					int size = 0;
-					int pos = 2;
-					for (int i = 0; i < qnt; i++)
-					{
-						printf("OID: ");
-						size = buffer[pos];
-						for (int j = 0; j < size; j++)
-						{
-							printf("%c", buffer[pos + 1 + j]);
-						}
-						pos = pos + size + 1;
-						size = buffer[pos];
-						printf("  ");
-						for (int j = 0; j < size; j++)
-						{
-							printf("%c", buffer[pos + 1 + j]);
-						}
-						printf("\n");
-						pos = pos + size + 1;
-					}
+					printf("%c", buffer[2 + j]);
 				}
-				else
+				int l_v = buffer[buffer[1] + 2];
+				printf("  ");
+				for (int i = 0; i < l_v; i++)
 				{
-					printf("Agent Reply:");
-					printf("OID: ");
-					int l = buffer[1];
-					for (int j = 0; j < l; j++)
-					{
-						printf("%c", buffer[2 + j]);
-					}
-					int l_v = buffer[buffer[1] + 2];
-					printf("  ");
-					for (int i = 0; i < l_v; i++)
-					{
-						printf("%c", buffer[buffer[1] + 3 + i]);
-					}
-					printf("\n");
+					printf("%c", buffer[buffer[1] + 3 + i]);
 				}
+				printf("\n");
 			}
 			buffer[n] = '\0';
 		}
 	}
 	close(sockfd);
 	return 0;
+}
+
+/**
+ * It takes the command written in the terminal and creates a datagram that will be sent to the server.
+ *
+ * @param snmpCommand The command that the user entered in the terminal
+ */
+void create_datagram(char *snmpCommand)
+{
+	memset(datagram, 0, 128);
+	char *token = NULL;
+	int i = 1;
+	char snmp[16];
+	char version[8];
+	char comstring[16];
+	char oid[64];
+	for (token = strtok(snmpCommand, " "); token != NULL; token = strtok(NULL, " "))
+	{
+		/* Checking if the first parameter of the command is snmpget, snmpgetnext or snmpset. If it is
+		snmpget it writes 0 to the datagram, if it is snmpgetnext it writes 1 to the datagram and if it is
+		snmpset it writes 2 to the datagram. */
+		if (i == 1)
+		{
+			memset(datagram, 0, 32);
+			strcpy(snmp, token);
+			int j = 0;
+			while (snmp[j])
+			{
+				snmp[j] = tolower(snmp[j]);
+				j++;
+			}
+			if (strcmp(snmp, "snmpget") == 0)
+			{
+				datagram[0] = 0;
+			}
+			else if (strcmp(snmp, "snmpgetnext") == 0)
+			{
+				datagram[0] = 1;
+			}
+			else if (strcmp(snmp, "snmpset") == 0)
+			{
+				datagram[0] = 2;
+			}
+		}
+		/* Checking if the version is v2c or v1. If it is v2c it writes 1 to the datagram otherwise it writes
+		2. */
+		if (i == 2)
+		{
+			strcpy(version, token);
+			int j = 0;
+			while (version[j])
+			{
+				version[j] = tolower(version[j]);
+				j++;
+			}
+			if (strcmp(version, "-v2c") == 0)
+			{
+				datagram[1] = 1;
+			}
+			else
+			{
+				datagram[1] = 2;
+			}
+		}
+		/* Copying the community string to the datagram. */
+		if (i == 3)
+		{
+			strcpy(comstring, token);
+			int j = 0;
+			while (comstring[j])
+			{
+				comstring[j] = tolower(comstring[j]);
+				datagram[j + 3] = comstring[j];
+				j++;
+			}
+			datagram[2] = j;
+		}
+		/* Copying the OID to the datagram. */
+		if (i == 4)
+		{
+			strcpy(oid, token);
+			int j = 0;
+			int a = 0;
+			while (oid[j])
+			{
+				datagram[datagram[2] + 3 + j + 1] = oid[j];
+				j++;
+			}
+			datagram[datagram[2] + 3] = j;
+		}
+		/* The part of the code that is responsible for the snmpset command. It takes the value that the user
+		wants to set and writes it to the datagram. */
+		if (i == 5)
+		{
+			if (datagram[0] == 2)
+			{
+				char value[32];
+				strcpy(value, token);
+				int j = 0;
+				while (value[j])
+				{
+					datagram[(datagram[2] + 3) + datagram[datagram[2] + 3] + 2 + j] = value[j];
+					j++;
+				}
+				datagram[(datagram[2] + 3) + datagram[datagram[2] + 3] + 1] = j;
+			}
+		}
+		i++;
+	}
+}
+
+/**
+ * It prints the menu.
+ */
+void menu()
+{
+	printf("\n");
+	printf("---------SNMPv2c Managment App---------\n");
+	printf("Press 1 to insert SNPM commands\n");
+	printf("Press 0 to exit\n");
+	printf("\n");
+	printf("-----------Accepted Commands-----------\n");
+	printf("snmpget -v2c public [OID]\n");
+	printf("snmpgetnext -v2c public [OID]\n");
+	printf("snmpset -v2c public [OID] [VALUE]\n");
+	printf("\n");
 }
