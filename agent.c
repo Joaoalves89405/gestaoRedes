@@ -1,4 +1,3 @@
-// Server side implementation of UDP client-server model
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -10,11 +9,93 @@
 #define PORT 8080
 #define MAXLINE 1024
 
+void readMIB();
+void snmpget(uint8_t buffer[64]);
+void snmpgetnext(uint8_t buffer[64]);
+void snmpset(uint8_t buffer[64]);
+
 FILE *file;
 uint8_t datagram[128];
 int port = 0;
 char CommunityString[32];
 char oid[16];
+
+int main()
+{
+	int sockfd, len, n;
+	uint8_t buffer[MAXLINE];
+	char *hello = "First message from server";
+	struct sockaddr_in servaddr, cliaddr;
+	readMIB();
+
+	// Creating socket file descriptor
+	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+	{
+		perror("Socket creation failed");
+		exit(EXIT_FAILURE);
+	}
+
+	memset(&servaddr, 0, sizeof(servaddr));
+	memset(&cliaddr, 0, sizeof(cliaddr));
+
+	// Filling server information
+	servaddr.sin_family = AF_INET; // IPv4
+	servaddr.sin_addr.s_addr = INADDR_ANY;
+	servaddr.sin_port = htons(port);
+
+	// Bind the socket with the server address
+	if (bind(sockfd, (const struct sockaddr *)&servaddr,
+			 sizeof(servaddr)) < 0)
+	{
+		perror("Bind failed");
+		exit(EXIT_FAILURE);
+	}
+	len = sizeof(cliaddr);
+
+	while (1)
+	{
+		n = recvfrom(sockfd, buffer, MAXLINE, MSG_WAITALL, (struct sockaddr *)&cliaddr, &len);
+
+		int CString = (int)(buffer[2]);
+		char comun_string[16];
+		memset(comun_string, 0, 16);
+
+		for (int i = 0; i < CString; i++)
+		{
+			comun_string[i] = (char)buffer[i + 3];
+		}
+		if ((buffer[1]) == 1 && strcmp(comun_string, CommunityString) == 0)
+		{
+			if (buffer[0] == 0)
+			{
+				printf("SNMPGET\n");
+				snmpget(buffer);
+			}
+			else if ((buffer[0]) == 1)
+			{
+				printf("SNMPGETNEXT\n");
+				snmpgetnext(buffer);
+			}
+			else if ((buffer[0]) == 2)
+			{
+				printf("SNMPSET\n");
+				snmpset(buffer);
+			}
+		}
+		else
+		{
+			printf("Failed\n");
+			datagram[0] = 0;
+			char erro[64] = "Version or community string incorrect";
+			int size = strlen(erro);
+			datagram[1] = size;
+			sprintf(datagram + 2, "%s", erro);
+		}
+		buffer[n] = '\0';
+		sendto(sockfd, datagram, 128, 0, (const struct sockaddr *)&cliaddr, len);
+	}
+	return 0;
+}
 
 /**
  * It reads the mib.txt file and stores the port number, community string, and oid in the variables
@@ -198,6 +279,16 @@ void snmpgetnext(uint8_t buffer[64])
 	}
 }
 
+/**
+ * It reads the mib.txt file, checks if the OID exists, if it does, it checks if the variable type is
+ * the same as the one in the mib.txt file, if it is, it checks if the variable is writable, if it is,
+ * it writes the new value to the mib.txt file and sends a success message to the client. If any of the
+ * checks fail, it sends a fail message to the client
+ *
+ * @param buffer the buffer that contains the SNMP packet
+ *
+ * @return The function snmpset is returning the datagram.
+ */
 void snmpset(uint8_t buffer[64])
 {
 	memset(datagram, 0, 128);
@@ -245,6 +336,7 @@ void snmpset(uint8_t buffer[64])
 	{
 		val[i] = buffer[buffer[2] + 3 + sizeOID + 1 + i + 1];
 	}
+
 	for (int i = 0; i < sizeValue; i++)
 	{
 		if (buffer[buffer[2] + 3 + sizeOID + 1 + i + 1] <= 57 && buffer[buffer[2] + 3 + sizeOID + 1 + i + 1] >= 48)
@@ -252,10 +344,12 @@ void snmpset(uint8_t buffer[64])
 			count++;
 		}
 	}
+
 	if (count == sizeValue)
 	{
 		isInt = 1;
 	}
+
 	while (fgets(fbuff, sizeof(fbuff), file) != NULL)
 	{
 		memset(aux, 0, 256);
@@ -264,6 +358,7 @@ void snmpset(uint8_t buffer[64])
 		j = 1;
 		for (token = strtok(fbuff, " "); token != NULL; token = strtok(NULL, " "))
 		{
+
 			if (j == 1)
 			{
 				if (strcmp(oid1, token) == 0)
@@ -271,6 +366,7 @@ void snmpset(uint8_t buffer[64])
 					found = 1;
 				}
 			}
+
 			if (j == 2 && found == 1 && flag == 0)
 			{
 				if ((strcmp(token, "Integer") == 0 && isInt == 1) || (strcmp(token, "Integer") != 0 && isInt != 1))
@@ -283,6 +379,7 @@ void snmpset(uint8_t buffer[64])
 					flag = 1;
 				}
 			}
+
 			if (j == 3 && variable == 1 && flag == 0)
 			{
 				if (strcmp(token, "rw") == 0)
@@ -295,6 +392,7 @@ void snmpset(uint8_t buffer[64])
 					flag = 1;
 				}
 			}
+
 			if (j == 4 && read_write == 1 && flag == 0)
 			{
 				flag = 1;
@@ -368,81 +466,4 @@ void snmpset(uint8_t buffer[64])
 		datagram[1] = size;
 		sprintf(datagram + 2, "%s", erro);
 	}
-}
-
-int main()
-{
-	int sockfd, len, n;
-	uint8_t buffer[MAXLINE];
-	char *hello = "First message from server";
-	struct sockaddr_in servaddr, cliaddr;
-	readMIB();
-
-	// Creating socket file descriptor
-	if ((sockfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-	{
-		perror("Socket creation failed");
-		exit(EXIT_FAILURE);
-	}
-
-	memset(&servaddr, 0, sizeof(servaddr));
-	memset(&cliaddr, 0, sizeof(cliaddr));
-
-	// Filling server information
-	servaddr.sin_family = AF_INET; // IPv4
-	servaddr.sin_addr.s_addr = INADDR_ANY;
-	servaddr.sin_port = htons(port);
-
-	// Bind the socket with the server address
-	if (bind(sockfd, (const struct sockaddr *)&servaddr,
-			 sizeof(servaddr)) < 0)
-	{
-		perror("Bind failed");
-		exit(EXIT_FAILURE);
-	}
-	len = sizeof(cliaddr);
-
-	while (1)
-	{
-		n = recvfrom(sockfd, buffer, MAXLINE, MSG_WAITALL, (struct sockaddr *)&cliaddr, &len);
-
-		int CString = (int)(buffer[2]);
-		char comun_string[16];
-		memset(comun_string, 0, 16);
-
-		for (int i = 0; i < CString; i++)
-		{
-			comun_string[i] = (char)buffer[i + 3];
-		}
-		if ((buffer[1]) == 1 && strcmp(comun_string, CommunityString) == 0)
-		{
-			if (buffer[0] == 0)
-			{
-				printf("SNMPGET\n");
-				snmpget(buffer);
-			}
-			else if ((buffer[0]) == 1)
-			{
-				printf("SNMPGETNEXT\n");
-				snmpgetnext(buffer);
-			}
-			else if ((buffer[0]) == 2)
-			{
-				printf("SNMPSET\n");
-				snmpset(buffer);
-			}
-		}
-		else
-		{
-			printf("Failed\n");
-			datagram[0] = 0;
-			char erro[64] = "Version or community string incorrect";
-			int size = strlen(erro);
-			datagram[1] = size;
-			sprintf(datagram + 2, "%s", erro);
-		}
-		buffer[n] = '\0';
-		sendto(sockfd, datagram, 128, 0, (const struct sockaddr *)&cliaddr, len);
-	}
-	return 0;
 }
