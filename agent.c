@@ -370,104 +370,6 @@ void snmpset(uint8_t buffer[64])
 	}
 }
 
-void snmpgetbulk(uint8_t buffer[64])
-{
-	memset(datagram, 0, 128);
-	char oid1[16];
-	int t_oid = buffer[(buffer[2]) + 3];
-	for (int i = 0; i < t_oid; i++)
-	{
-		oid1[i] = buffer[(buffer[2]) + 3 + 1 + i];
-	}
-	char oid2[16];
-	int t_oid2 = buffer[(buffer[2] + 3) + buffer[buffer[2] + 3] + 1];
-	for (int i = 0; i < t_oid2; i++)
-	{
-		oid2[i] = buffer[(buffer[2] + 3) + buffer[buffer[2] + 3] + i + 2];
-	}
-	char valores[16][32];
-	char bulk_oids[16][32];
-	char fbuff[64];
-	int j = 1;
-	int pos_x = 0;
-	int found = 0;
-	int next = 0;
-	char valor[32];
-	file = fopen("mib.txt", "r");
-	if (file == NULL)
-	{
-		perror("Error opening file mib.txt");
-		return;
-	}
-	while (fgets(fbuff, sizeof(fbuff), file) != NULL && next == 0)
-	{
-		char *token = NULL;
-		j = 1;
-		for (token = strtok(fbuff, " "); token != NULL; token = strtok(NULL, " "))
-		{
-			if (j == 1)
-			{
-				if (strcmp(oid1, token) == 0)
-				{
-					found = 1;
-				}
-				if (found)
-				{
-					strcpy(bulk_oids[pos_x], token);
-					// printf("%s\n", bulk_oids[pos_x]);
-				}
-			}
-			if (j == 4 && found)
-			{
-				// valor encontrado criar datagram e enviar
-				strcpy(valores[pos_x], token);
-				valores[pos_x][strlen(valores[pos_x]) - 1] = '\0';
-				// printf("%s\n", valores[pos_x]);
-				pos_x++;
-			}
-			if (strcmp(oid2, token) == 0)
-			{
-				next = 1;
-				printf("Sucesso\n");
-			}
-			j++;
-		}
-	}
-	fclose(file);
-	if (found == 0)
-	{
-		printf(" Insucesso\n");
-		// valor nao encontrado criar datagram e enviar
-		datagram[0] = 0;
-		char erro[32] = "OID não encontrado";
-		int size = strlen(erro);
-		datagram[1] = size;
-		sprintf(datagram + 2, "%s", erro);
-	}
-	else
-	{
-		datagram[0] = 1;
-		datagram[1] = pos_x;
-		int pos = 0;
-		pos = 2;
-		for (int i = 0; i < pos_x; i++)
-		{
-			datagram[pos] = strlen(bulk_oids[i]);
-			for (int j = 0; j < strlen(bulk_oids[i]); j++)
-			{
-				datagram[pos + 1 + j] = bulk_oids[i][j];
-			}
-			pos = pos + datagram[pos] + 1;
-			datagram[pos] = strlen(valores[i]);
-			for (int j = 0; j < strlen(valores[i]); j++)
-			{
-				datagram[pos + 1 + j] = valores[i][j];
-			}
-			pos = pos + datagram[pos] + 1;
-		}
-	}
-}
-
 int main()
 {
 	int sockfd, len, n;
@@ -514,6 +416,7 @@ int main()
 		}
 		if ((buffer[1]) == 1 && strcmp(comun_string, CommunityString) == 0)
 		{
+			printf("AQUI:%u\n", buffer[0]);
 			if (buffer[0] == 0)
 			{
 				printf("SNMPGET\n");
@@ -528,11 +431,6 @@ int main()
 			{
 				printf("SNMPSET\n");
 				snmpset(buffer);
-			}
-			else if ((buffer[0]) == 3)
-			{
-				printf("SNMPGETBULK\n");
-				snmpgetbulk(buffer);
 			}
 		}
 		else

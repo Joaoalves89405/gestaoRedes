@@ -10,5 +10,5 @@
 1.2.3.4.5.2.1.0 Integer rw 9999999
 1.2.3.4.5.2.2.0 DisplayString r Hello
 1.2.3.4.5.2.3.0 DisplayString rw mib
-1.2.3.4.5.2.4.0 Integer rw 666
+1.2.3.4.5.2.4.0 Integer rw 999
 1.2.3.4.5.2.5.0 Integer r 10

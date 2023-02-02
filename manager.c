@@ -23,7 +23,6 @@ void menu()
 	printf("snmpget -v2c public [OID]\n");
 	printf("snmpgetnext -v2c public [OID]\n");
 	printf("snmpset -v2c public [OID] [VALUE]\n");
-	printf("snmpgetbulk -v2c public [OID] [OID]\n");
 	printf("\n");
 }
 
@@ -60,10 +59,6 @@ void create_datagram(char *snmpCommand)
 			else if (strcmp(snmp, "snmpset") == 0)
 			{
 				datagram[0] = 2;
-			}
-			else if (strcmp(snmp, "snmpgetbulk") == 0)
-			{
-				datagram[0] = 3;
 			}
 		}
 		// second parameter of the datagram (version)
@@ -182,7 +177,7 @@ int main()
 			char snmpCommand[64];
 			char c;
 			int a = 0;
-			printf("Insert SNMP command:\n");
+			printf("Insert SNMP command:");
 			fflush(stdin);
 			while ((c = getchar()) != '\n')
 				snmpCommand[a++] = c;
@@ -234,7 +229,7 @@ int main()
 				}
 				else
 				{
-					printf("Agent Reply:\n");
+					printf("Agent Reply:");
 					printf("OID: ");
 					int l = buffer[1];
 					for (int j = 0; j < l; j++)
