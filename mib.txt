@@ -2,13 +2,13 @@
 # Grupo 1
 1.2.3.4.5.1.1.0 Integer r 3245
 1.2.3.4.5.1.2.0 DisplayString rw welcomeee
-1.2.3.4.5.1.3.0 Integer rw 4343
+1.2.3.4.5.1.3.0 Integer rw 55555
 1.2.3.4.5.1.4.0 Integer r 1010
 
 #Grupo 2 
 
 1.2.3.4.5.2.1.0 Integer rw 9999999
 1.2.3.4.5.2.2.0 DisplayString r Hello
-1.2.3.4.5.2.3.0 DisplayString rw virutalMIB
-1.2.3.4.5.2.4.0 Integer rw 8888
+1.2.3.4.5.2.3.0 DisplayString rw VirtualMIB
+1.2.3.4.5.2.4.0 Integer rw 4444
 1.2.3.4.5.2.5.0 Integer r 10

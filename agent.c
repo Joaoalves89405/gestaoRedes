@@ -132,6 +132,7 @@ void snmpget(uint8_t buffer[64])
 	int found = 0;
 	char value[32];
 	file = fopen("mib.txt", "r");
+
 	if (file == NULL)
 	{
 		perror("Error opening file mib.txt");
@@ -143,6 +144,7 @@ void snmpget(uint8_t buffer[64])
 		oid1[i] = buffer[(buffer[2]) + 3 + 1 + i];
 	}
 
+	/* Reading the file line by line and storing each line in the variable fbuff. */
 	while (fgets(fbuff, sizeof(fbuff), file) != NULL && found == 0)
 	{
 		char *token = NULL;
@@ -206,6 +208,7 @@ void snmpgetnext(uint8_t buffer[64])
 	char oid_next[32];
 	memset(value, 0, 32);
 	file = fopen("mib.txt", "r");
+
 	if (file == NULL)
 	{
 		perror("Error opening file mib.txt");
@@ -217,6 +220,7 @@ void snmpgetnext(uint8_t buffer[64])
 		oid1[i] = buffer[(buffer[2]) + 3 + 1 + i];
 	}
 
+	/* Reading the file line by line and storing each line in the variable fbuff. */
 	while (fgets(fbuff, sizeof(fbuff), file) != NULL && next == 0)
 	{
 		char *token = NULL;
@@ -225,6 +229,7 @@ void snmpgetnext(uint8_t buffer[64])
 		{
 			next = 1;
 		}
+
 		for (token = strtok(fbuff, " "); token != NULL; token = strtok(NULL, " "))
 		{
 			if (j == 1)
@@ -356,6 +361,8 @@ void snmpset(uint8_t buffer[64])
 		strcpy(aux, fbuff);
 		char *token = NULL;
 		j = 1;
+
+		/* Reading the file line by line and storing each line in the variable fbuff. */
 		for (token = strtok(fbuff, " "); token != NULL; token = strtok(NULL, " "))
 		{
 
